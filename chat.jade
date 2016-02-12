@@ -1,0 +1,49 @@
+doctype html
+html
+  head
+    title Chat
+  body
+    h1 Welcome !{name} - !{friendName}
+    form#send-message
+     |name: 
+     input(type="text",name="name")#message
+     br
+     br
+     input(type="submit")
+    br
+    br
+    br
+    div#chat
+     | !{friendName}
+     br
+     br
+     each message in messages
+      if(friendNumber == message.sender ) 
+       !{friendName}
+      else
+       !{name}
+      | :
+      !{message.msg}
+      br    
+    br
+    br
+    br
+    a(href='/logout') Logout    
+    script(src="http://code.jquery.com/jquery-latest.min.js")
+    script(src="/socket.io/socket.io.js")
+    script.
+     var socket = io.connect('http://localhost:3000/');
+     $('#send-message').submit(function(e)
+     {
+      console.log("hmmm");
+      e.preventDefault();
+      socket.emit('send message',{ msg : $('#message').val() , reciever : #{friendNumber}});
+      $('#message').val('');
+     });
+     socket.on('new message',function(data)
+     {
+       if(data.reciever == !{mobilenumber})
+        $('#chat').append( data.senderName + " : " + data.msg + "<br />");
+       if(data.senderMobileNumber == !{mobilenumber})
+        $('#chat').append( data.senderName + " : " + data.msg + "<br />");
+     });

@@ -1,0 +1,24 @@
+doctype html
+html
+  head
+    title Login
+  body
+    h1 Login
+    form(action="/login",method="post")#login
+     |mobile: 
+     input(type="text",name="mobilenumber")
+     !{err}
+     br
+     br
+     |password: 
+     input(type="password",name="password")
+     br
+     br
+     input(type="submit")
+    br
+    br
+    br
+    | Not a member
+    a(href='/signup') Signup
+    script(src="http://code.jquery.com/jquery-latest.min.js")
+    script(src="/socket.io/socket.io.js")

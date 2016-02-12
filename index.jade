@@ -1,0 +1,22 @@
+doctype html
+html
+  head
+    title my jade template
+  body
+    h1 Welcome !{name}
+    form#send-message
+     input(type="text")#message
+     br
+     input(type="submit")
+    br
+    br
+    br
+    div#chat
+      | Friends
+      br
+      br
+      each friend in friends
+       a(href="/chat?id=#{friend.mobilenumber}") !{friend.name}
+       br      
+    script(src="http://code.jquery.com/jquery-latest.min.js")
+    script(src="/socket.io/socket.io.js")

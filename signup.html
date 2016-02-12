@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Signup</title>
+</head>
+<body>
+	<form id="signup" action="/signup" method="post">
+		Name : <input type="text" name="name"> <br>
+		Password : <input type="password" name="password"> <br>
+		<input type="submit">
+	</form>
+	<script src="http://code.jquery.com/jquery-latest.min.js"></script>
+	<script src="/socket.io/socket.io.js"></script>
+	<script type="text/javascript">
+		jQuery(function($){
+			var socket=io.connect();
+			
+			// $('#signup').submit(function(e){
+			// 	e.preventDefault();
+			// 	socket.emit('signup',[$('#name').val(),$('#password').val()]);
+			// 	$('#name').val('');
+			// 	$('#password').val('');
+			// });
+		});
+	</script>
+</body>
+</html>
