@@ -56,13 +56,18 @@ app.get('/chat',function(req,res){
 			    	{
 			    		var messageCollection = db.collection('message');
 			    		var conversationId1 = req.session.mobilenumber + req.query.id ; 
-			    		var conversationId2 = req.query.id + req.session.mobilenumber ; 
+			    		var conversationId2 = req.query.id + req.session.mobilenumber ;
+			    		var conversationId;
+			    		if(req.session.mobilenumber<req.query.id)
+			    			conversationId=req.session.mobilenumber+req.query.id;
+			    		else
+			    			conversationId=req.query.id+req.session.mobilenumber;
 			    	    var messageQuery = messageCollection.find(  { $or: [ { conversationId : conversationId1 } , { conversationId : conversationId2 } ] } ).toArray(function(err,msg){
 			    	    console.log(msg.length);
 			    		var conv = new Array();
 				    	for(var i=0;i<msg.length;i++)
 				    	{
-				    		 conv.push({ msg : msg[i].msg , sender : msg[i].sender , reciever : msg[i].reciever });
+				    		 conv.push({ msg : decryptMessage(msg[i].msg,conversationId) , sender : msg[i].sender , reciever : msg[i].reciever });
 				    	}
 				    	console.log("conv" + conv.length);
 				    	res.render(__dirname + '/chat.jade',{ friendName  : docs[0].name , friendNumber : docs[0].mobilenumber , friendId : docs[0]._id  , mobilenumber : req.session.mobilenumber , name : req.session.name , messages : conv });
@@ -249,8 +254,14 @@ io.sockets.on('connection',function(socket){
 			//console.log(socket.handshake.session.user);
 			var collection = db.collection('message');
 			//console.log(data.reciever + socket.handshake.session.user  + data//);
-			var conversationId = socket.handshake.session.mobilenumber + data.reciever;
-			collection.insert({ msg : data.msg , sender : socket.handshake.session.mobilenumber , reciever : data.reciever , conversationId : conversationId },function(err){
+			var conversationId;
+			if(socket.handshake.session.mobilenumber>data.reciever)
+				conversationId = data.reciever+socket.handshake.session.mobilenumber;
+			else
+				conversationId = socket.handshake.session.mobilenumber + data.reciever;
+
+			encryptedMessage = encryptMessage(data.msg,conversationId);
+			collection.insert({ msg : encryptedMessage , sender : socket.handshake.session.mobilenumber , reciever : data.reciever , conversationId : conversationId },function(err){
 				if(err)
 					console.warn(err);
 				else
@@ -284,3 +295,132 @@ io.sockets.on('connection',function(socket){
 		//socket.broadcast.emit('new message',data);
 	});
 });
+function encryptMessage(msg,cid)
+{
+	var cid1 = parseInt(cid.substr(0,10));
+	var cid2 = parseInt(cid.substr(10,10));
+	//alert(cid1);
+	//alert(cid2);
+	var matrix = new Array();
+	for (var i=0;i<9;i++)
+	{
+		if(i<5)
+		{
+			var number = cid2%100;
+			number = number*(i+1);
+			matrix.push(number);
+			cid2 = Math.floor(cid2/100);
+		}
+		else
+		{
+			var number = cid1%100;
+			number = number*(i+1);
+			matrix.push(number);
+			cid1 = Math.floor(cid1/100);
+		}
+		
+	}
+	var n = msg.length;
+	var msgMatrix = new Array();
+	var msg = msg.toLowerCase();
+	for(var i=0;i<n;i++)
+	{
+		var j;
+		if(msg.charCodeAt(i)==32)
+		{
+			j = 27;
+		}
+		else
+		{
+			j = msg.charCodeAt(i)-96;
+		}
+		msgMatrix.push(j);
+	}
+	//alert(matrix);
+	//alert(msgMatrix);
+	var extra = 3-n%3;
+	for(i=0;i<extra;i++)
+		msgMatrix.push(27);
+	n=n+extra;
+	var encryptedMessage = new Array();
+	for(var i=0;i<n/3;i++)
+	{
+		encryptedMessage.push(msgMatrix[3*i]*matrix[0] + msgMatrix[3*i+1]*matrix[3]+msgMatrix[3*i+2]*matrix[6]);
+		encryptedMessage.push(msgMatrix[3*i]*matrix[1] + msgMatrix[3*i+1]*matrix[4]+msgMatrix[3*i+2]*matrix[7]);
+		encryptedMessage.push(msgMatrix[3*i]*matrix[2] + msgMatrix[3*i+1]*matrix[5]+msgMatrix[3*i+2]*matrix[8]);
+	}
+	encryptedMessage = encryptedMessage.join();
+	//alert(encryptedMessage)
+	return encryptedMessage;
+	
+}
+function decryptMessage(msg,cid)
+{
+
+	var encryptedMatrix = msg.split(",");
+	var n =encryptedMatrix.length;
+	var cid1 = parseInt(cid.substr(0,10));
+	var cid2 = parseInt(cid.substr(10,10));
+	//alert(cid1);
+	//alert(cid2);
+	var matrix = new Array();
+	for (var i=0;i<9;i++)
+	{
+		if(i<5)
+		{
+			var number = cid2%100;
+			number = number*(i+1);
+			matrix.push(number);
+			cid2 = Math.floor(cid2/100);
+		}
+		else
+		{
+			var number = cid1%100;
+			number = number*(i+1);
+			matrix.push(number);
+			cid1 = Math.floor(cid1/100);
+		}
+		
+	}
+	//alert(matrix);
+	var inverseMatrix = new Array();
+	var number;
+	number = matrix[4]*matrix[8] - matrix[7]*matrix[5];
+	inverseMatrix.push(number);
+	number = (matrix[1]*matrix[8] - matrix[7]*matrix[2])*-1;
+	inverseMatrix.push(number);
+	number = matrix[1]*matrix[5] - matrix[4]*matrix[2];
+	inverseMatrix.push(number);
+	number = (matrix[3]*matrix[8] - matrix[5]*matrix[6])*-1;
+	inverseMatrix.push(number);
+	number = matrix[0]*matrix[8] - matrix[2]*matrix[6];
+	inverseMatrix.push(number);
+	number = (matrix[0]*matrix[5] - matrix[2]*matrix[3])*-1;
+	inverseMatrix.push(number);
+
+	number = matrix[3]*matrix[7] - matrix[4]*matrix[6];
+	inverseMatrix.push(number);
+	number = (matrix[0]*matrix[7] - matrix[1]*matrix[6])*-1;
+	inverseMatrix.push(number);
+	number = matrix[0]*matrix[4] - matrix[1]*matrix[3];
+	inverseMatrix.push(number);
+	var determinant = (matrix[0]*(matrix[4]*matrix[8]-matrix[5]*matrix[7]))-(matrix[3]*(matrix[1]*matrix[8]-matrix[2]*matrix[7]))+(matrix[6]*(matrix[1]*matrix[5]-matrix[2]*matrix[4]));
+	for(var i=0;i<9;i++)
+		inverseMatrix[i]=inverseMatrix[i]/determinant;
+	decryptedMessage = new Array();
+	for(i=0;i<n/3;i++)
+	{
+		decryptedMessage.push(encryptedMatrix[3*i]*inverseMatrix[0] + encryptedMatrix[3*i+1]*inverseMatrix[3]+encryptedMatrix[3*i+2]*inverseMatrix[6]);
+		decryptedMessage.push(encryptedMatrix[3*i]*inverseMatrix[1] + encryptedMatrix[3*i+1]*inverseMatrix[4]+encryptedMatrix[3*i+2]*inverseMatrix[7]);
+		decryptedMessage.push(encryptedMatrix[3*i]*inverseMatrix[2] + encryptedMatrix[3*i+1]*inverseMatrix[5]+encryptedMatrix[3*i+2]*inverseMatrix[8]);
+	}
+	var alphabets = "abcdefghijklmnopqrstuvwxyz ";
+	var message = "";
+	//alert(decryptedMessage);
+	for(var i=0;i<n;i++)
+	{
+		message = message+alphabets[Math.round(decryptedMessage[i]-1)];
+	}
+	return message;
+
+}
